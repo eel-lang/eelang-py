@@ -119,9 +119,14 @@ title: eelang — Erlang-friendly Python fork
   `PyAPI_DATA(PyObject *) PyExc_MatchError;`; обновить
   `Lib/test/exception_hierarchy.txt`.
 - Тесты: новый `Lib/test/test_match_assign.py`; future-тесты в
-  `Lib/test/test_future_stmt/`; в `Lib/test/test_syntax.py` обновить 22 ожидаемых
+  `Lib/test/test_future_stmt/`; в `Lib/test/test_syntax.py` обновлены 22 ожидаемых
   сообщения, которые при выключенном флаге теперь приходят от новой альтернативы;
-  документация в `Doc/`.
+  в `Lib/test/test_capi/test_run.py` сниппет `SYNTAX_ERROR` заменён на чисто
+  парсерную ошибку (бывший `True = 1` теперь валидный синтаксис, а ошибки стадии
+  компиляции в интерактивном режиме получают синтетическое имя файла
+  `<имя>-N` из `pythonrun.c` — унаследованное поведение CPython, см. `nonlocal x`);
+  `MatchError` добавлен в skip-list маппинга `_compat_pickle` в
+  `Lib/test/test_pickle.py` (как другие новые исключения, напр. `BaseExceptionGroup`).
 
 Порядок сборки: `./configure && make -j` → `regen-pegen` и `regen-ast` → пересборка → тесты.
 
