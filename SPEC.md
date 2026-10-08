@@ -1,7 +1,7 @@
 ---
 id: eelang
 type: goal-and-requirements
-status: draft
+status: active
 title: eelang — Erlang-friendly Python fork
 ---
 
@@ -115,4 +115,4 @@ title: eelang — Erlang-friendly Python fork
   как цель присваивания.
 - Известные ограничения: цепочки вида `q = Point(x, y) = p` остаются `SyntaxError`
   (как и в CPython); гарантию от `MatchError` даёт только неохраняемый `case _:`
-  (guard может не сработать); `match` без веток всегда кидает.
+  (guard может не сработать).
