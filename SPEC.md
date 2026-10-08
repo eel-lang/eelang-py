@@ -74,20 +74,38 @@ title: eelang — Erlang-friendly Python fork
 паттернами (`x + 1 = y`, `(yield x) = v`), по-прежнему ловит `invalid_assignment`
 с прежними сообщениями.
 
+Важное следствие: так как `assignment` пробуется для **каждого** оператора,
+вложенный разбор паттернов не должен «ронять» парсинг исключением из action для
+валидных выражений. Поэтому `_PyPegen_ensure_imaginary`/`_PyPegen_ensure_real`
+изменены: вместо `SyntaxError` они проваливают правило чисто (NULL без ошибки) —
+иначе `f(1-1, -0o2)` абортился бы на class-паттерне раньше, чем дошло бы до
+парсинга выражения. Валидные комплексные паттерны (`case 1-2j:`) не затронуты;
+сообщение «imaginary number required…» для ошибочных паттернов в `match` заменяется
+на «invalid syntax» (тестами не зафиксировано).
+
 ### План правок в CPython 3.15
 
 - `Grammar/python.gram`: в правило `assignment` добавляется альтернатива
   `a=patterns '=' b=annotated_rhs !'=' tc=[TYPE_COMMENT]` — после существующих правил
   присваивания (включая augassign) и до `invalid_assignment`; затем `make regen-pegen`
-  (после первой сборки дерева).
-- `Include/cpython/compile.h`: `CO_FUTURE_PATTERN_MATCHING = 0x2000000` и добавить
-  его в `PyCF_MASK`.
+  (после первой сборки дерева). Дополнительно в `as_pattern` добавляется вариант цели
+  `match_assign_as_target` (`NAME !('.' | '(') &'='`), чтобы `p as q = v` разбирался
+  как MatchAssign — обычные guard'ы `!'='` у capture/value-паттернов при этом
+  сохраняются (иначе ломается match: позиционные паттерны начинали глотать
+  keyword-имена, см. `TI(T.OP, string=...)` в `Lib/_pyrepl/utils.py`).
+- `Include/cpython/code.h`: `CO_FUTURE_PATTERN_MATCHING = 0x10000000` —
+  не 0x2000000: биты 0x2000000–0x8000000 заняты (`CO_NO_MONITORING_EVENTS`,
+  `CO_HAS_DOCSTRING`, `CO_METHOD`); флаг добавить в `PyCF_MASK` в
+  `Include/cpython/compile.h`.
 - `Lib/__future__.py`: `pattern_matching = _Feature((3, 15, 0, "final", 0), None,
   CO_FUTURE_PATTERN_MATCHING)`.
 - `Python/future.c`: ветка в `future_check_features`.
 - `Parser/Python.asdl`: узел `MatchAssign(pattern pattern, expr value)` +
-  `make regen-ast`; обход и печать в `Python/ast_opt.c`, `Python/ast_unparse.c`,
-  `Python/symtable.c` (имена паттерна — Store), `Python/codegen.c`.
+  `make regen-ast`; в 3.15 обвязка такая: `Python/ast.c` (валидация),
+  `Python/ast_preprocess.c` (fold), `Lib/_ast_unparse.py` (`visit_MatchAssign`;
+  `Python/ast_opt.c` в 3.15 нет — оптимизатор AST убран, а `Python/ast_unparse.c`
+  занимается только аннотациями), `Python/symtable.c` (имена паттерна — Store),
+  `Python/codegen.c`. `Lib/ast.py` править не нужно — классы узлов приходят из `_ast`.
 - `Python/symtable.c`: при выключенном флаге — `SyntaxError` (парсер флаг не знает:
   future-импорты обрабатываются после парсинга); кодоген читает флаг через
   `FUTURE_FEATURES(c)`.
@@ -101,8 +119,8 @@ title: eelang — Erlang-friendly Python fork
   `PyAPI_DATA(PyObject *) PyExc_MatchError;`; обновить
   `Lib/test/exception_hierarchy.txt`.
 - Тесты: новый `Lib/test/test_match_assign.py`; future-тесты в
-  `Lib/test/test_future_stmt/`; в `Lib/test/test_syntax.py` обновить ~30–40 ожидаемых
-  сообщений, которые при выключенном флаге теперь приходят от новой альтернативы;
+  `Lib/test/test_future_stmt/`; в `Lib/test/test_syntax.py` обновить 22 ожидаемых
+  сообщения, которые при выключенном флаге теперь приходят от новой альтернативы;
   документация в `Doc/`.
 
 Порядок сборки: `./configure && make -j` → `regen-pegen` и `regen-ast` → пересборка → тесты.
