@@ -7,3 +7,7 @@ cpython-3.15/
 
 # Source archives
 *.zip
+
+# Jupyter (workspace is served by JupyterLab)
+*.ipynb
+.ipynb_checkpoints/

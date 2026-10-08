@@ -112,7 +112,12 @@ title: eelang — Erlang-friendly Python fork
 - `Python/codegen.c`: `codegen_match_assign` на базе `codegen_pattern`/`fail_pop` —
   subject вычисляется один раз, при провале `MatchError(subject)`; в `codegen_match`
   при включённом флаге провал всех веток завершается `MatchError(subject)` (subject
-  должен остаться доступным в точке конвергенции провалов).
+  должен остаться доступным в точке конвергенции провалов). Имя `MatchError`
+  грузится напрямую через `ADDOP_NAME_CUSTOM(... LOAD_GLOBAL ..., 1, 1)`
+  (канонический `LOAD_GLOBAL` с NULL-битом), а **не** через `codegen_nameop`:
+  `MatchError` отсутствует в symbol table, и внутри функции `codegen_nameop`
+  сгенерировал бы `LOAD_NAME`, который в функциональном фрейме умирает с
+  `SystemError: no locals found` (LOCALS() == NULL).
 - `Objects/exceptions.c`: `SimpleExtendsException(PyExc_ValueError, MatchError, ...)`
   + `ITEM(MatchError)` в `static_exceptions[]` (регистрация в builtins автоматическая,
   правка bltinmodule.c не нужна); `Include/pyerrors.h`:
