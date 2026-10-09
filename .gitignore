@@ -5,6 +5,9 @@
 # Nested CPython fork working tree (its own git repository)
 cpython-3.15/
 
+# Пристин-копия исходников (для сверки с форком)
+cpython-3.15-fresh/
+
 # Source archives
 *.zip
 
