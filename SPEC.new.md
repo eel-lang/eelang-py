@@ -1,9 +1,8 @@
 ---
 id: eelang-match-case-extension
 type: architecture-design
-status: draft
+status: deprecated
 title: eelang — расширение match/case (принятый дизайн)
-parent: eelang
 ---
 
 # Расширение match/case — принятый дизайн (ред. 3)
