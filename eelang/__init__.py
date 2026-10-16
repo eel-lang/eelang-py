@@ -3,7 +3,7 @@
 import ast
 
 __all__ = ["MatchError", "parse"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 _MODES = {"exec": 257, "eval": 258, "single": 256}
 
