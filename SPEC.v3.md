@@ -1,11 +1,15 @@
 ---
 id: eelang-v3
 type: architecture-design
-status: draft
+status: deprecated
 title: eelang v3 — надмножество CPython 3.15: assert-паттерны, match def, пайплайны
 ---
 
 # eelang v3 — надмножество CPython 3.15
+
+> **Заменена.** Дистрибуция и реализация перенесены в PyPI-пакет — см. `goal-and-requirements.md`
+> (`eelang-language`) и `architecture.md` (`eelang-architecture`). Семантика фич ниже остаётся
+> каноничной и перенесена в `eelang-architecture` без изменений.
 
 Согласованный дизайн (13.10.2026). Предыдущая итерация v2 — в
 `eelang-match-case-extension` (deprecated), её ветка используется только как справочник.
