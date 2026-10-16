@@ -148,11 +148,8 @@ class AssertPatternExtraTests(unittest.TestCase):
     def test_complex_literal(self):
         run("z = 1 + 2j\nassert 1 + 2j = z\n")
 
-    def test_bytes_pattern(self):
-        run("x = b'ab'\nassert b'ab' = x\n")
-
-    def test_none_singleton(self):
-        run("x = None\nassert None = x\n")
+    def test_bytes_and_none_patterns(self):
+        run("x = b'ab'\nassert b'ab' = x\ny = None\nassert None = y\n")
 
     def test_class_keyword_pattern(self):
         ns = {}
