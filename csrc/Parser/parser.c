@@ -8941,6 +8941,7 @@ match_assign_as_target_rule(Parser *p)
 // pipeline_stmt:
 //     | star_targets '=' NEWLINE INDENT star_expression NEWLINE pipe_step* DEDENT
 //     | star_targets '=' star_expression NEWLINE INDENT pipe_step+ DEDENT
+//     | star_expression NEWLINE pipe_step+
 static asdl_stmt_seq*
 pipeline_stmt_rule(Parser *p)
 {
@@ -9066,6 +9067,45 @@ pipeline_stmt_rule(Parser *p)
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s pipeline_stmt[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "star_targets '=' star_expression NEWLINE INDENT pipe_step+ DEDENT"));
+    }
+    { // star_expression NEWLINE pipe_step+
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> pipeline_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "star_expression NEWLINE pipe_step+"));
+        expr_ty b;
+        Token * newline_var;
+        asdl_seq * s;
+        if (
+            (b = star_expression_rule(p))  // star_expression
+            &&
+            (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
+            &&
+            (s = _loop1_46_rule(p))  // pipe_step+
+        )
+        {
+            D(fprintf(stderr, "%*c+ pipeline_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "star_expression NEWLINE pipe_step+"));
+            Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
+            if (_token == NULL) {
+                p->level--;
+                return NULL;
+            }
+            int _end_lineno = _token->end_lineno;
+            UNUSED(_end_lineno); // Only used by EXTRA macro
+            int _end_col_offset = _token->end_col_offset;
+            UNUSED(_end_col_offset); // Only used by EXTRA macro
+            _res = _PyPegen_bare_pipeline_stmt ( p , b , s , EXTRA );
+            if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
+                p->error_indicator = 1;
+                p->level--;
+                return NULL;
+            }
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s pipeline_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "star_expression NEWLINE pipe_step+"));
     }
     _res = NULL;
   done:

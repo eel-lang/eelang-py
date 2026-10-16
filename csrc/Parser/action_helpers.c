@@ -2799,18 +2799,19 @@ pipe_match_stmt(Parser *p, PyObject *tmpname, asdl_seq *cases, location loc,
                         loc.end_lineno, loc.end_col_offset, arena);
 }
 
-asdl_stmt_seq *
-_PyPegen_pipeline_stmt(Parser *p, expr_ty target, expr_ty value, asdl_seq *steps,
-                       Py_ssize_t lineno, Py_ssize_t col_offset,
-                       Py_ssize_t end_lineno, Py_ssize_t end_col_offset,
-                       PyArena *arena)
+/* Общий построитель пайплайна. `target == NULL` — «голый» пайплайн без
+   присваивания: значение вычисляется ради побочных эффектов и теряется. */
+static asdl_stmt_seq *
+pipeline_build(Parser *p, expr_ty target, expr_ty value, asdl_seq *steps,
+               location loc, PyArena *arena)
 {
-    location loc = match_assign_loc(lineno, col_offset, end_lineno, end_col_offset);
     Py_ssize_t n = steps ? asdl_seq_LEN(steps) : 0;
 
-    target = _PyPegen_set_expr_context(p, target, Store);
-    if (target == NULL) {
-        return NULL;
+    if (target != NULL) {
+        target = _PyPegen_set_expr_context(p, target, Store);
+        if (target == NULL) {
+            return NULL;
+        }
     }
 
     int has_block = 0;
@@ -2823,7 +2824,9 @@ _PyPegen_pipeline_stmt(Parser *p, expr_ty target, expr_ty value, asdl_seq *steps
     }
 
     if (!has_block) {
-        /* Simple pipeline: fold into a single assignment, no temp name. */
+        /* Простой пайплайн: сворачиваем в одно выражение, без temp-имени.
+           С таргетом — присваивание; без — просто вычисляем (значение
+           отбрасывается). */
         expr_ty folded = value;
         for (Py_ssize_t i = 0; i < n; i++) {
             eelang_pipe_step *step = (eelang_pipe_step *)asdl_seq_GET_UNTYPED(steps, i);
@@ -2836,17 +2839,24 @@ _PyPegen_pipeline_stmt(Parser *p, expr_ty target, expr_ty value, asdl_seq *steps
         if (body == NULL) {
             return NULL;
         }
-        asdl_seq_SET(body, 0, pipe_assign(p, target, folded, loc, arena));
+        if (target != NULL) {
+            asdl_seq_SET(body, 0, pipe_assign(p, target, folded, loc, arena));
+        }
+        else {
+            asdl_seq_SET(body, 0, _PyAST_Expr(folded, loc.lineno, loc.col_offset,
+                                              loc.end_lineno, loc.end_col_offset, arena));
+        }
         return body;
     }
 
-    /* Steps that are statements (`..match:`/`..assert:`) need a temp name to
-       carry the pipeline value between statements. */
+    /* Statement-шаги (`..match:`/`..assert:`) требуют temp-имя, несущее
+       значение пайплайна между стейтментами. */
     PyObject *tmpname = eelang_temp_name();
     if (tmpname == NULL) {
         return NULL;
     }
-    asdl_stmt_seq *body = _Py_asdl_stmt_seq_new(n + 2, arena);
+    Py_ssize_t total = n + 1 + (target != NULL ? 1 : 0);
+    asdl_stmt_seq *body = _Py_asdl_stmt_seq_new(total, arena);
     if (body == NULL) {
         Py_DECREF(tmpname);
         return NULL;
@@ -2874,9 +2884,33 @@ _PyPegen_pipeline_stmt(Parser *p, expr_ty target, expr_ty value, asdl_seq *steps
                                      applied, step->loc, arena));
         }
     }
-    asdl_seq_SET(body, k, pipe_assign(p, target,
-                                      eelang_name_for_tmp(p, tmpname, Load, loc, arena),
-                                      loc, arena));
+    if (target != NULL) {
+        asdl_seq_SET(body, k, pipe_assign(p, target,
+                                          eelang_name_for_tmp(p, tmpname, Load, loc, arena),
+                                          loc, arena));
+    }
     Py_DECREF(tmpname);
     return body;
+}
+
+asdl_stmt_seq *
+_PyPegen_pipeline_stmt(Parser *p, expr_ty target, expr_ty value, asdl_seq *steps,
+                       Py_ssize_t lineno, Py_ssize_t col_offset,
+                       Py_ssize_t end_lineno, Py_ssize_t end_col_offset,
+                       PyArena *arena)
+{
+    location loc = match_assign_loc(lineno, col_offset, end_lineno, end_col_offset);
+    return pipeline_build(p, target, value, steps, loc, arena);
+}
+
+/* «Голый» многострочный пайплайн без присваивания: только побочные
+   эффекты, значение теряется (при statement-шагах — протекает через `.0`). */
+asdl_stmt_seq *
+_PyPegen_bare_pipeline_stmt(Parser *p, expr_ty value, asdl_seq *steps,
+                            Py_ssize_t lineno, Py_ssize_t col_offset,
+                            Py_ssize_t end_lineno, Py_ssize_t end_col_offset,
+                            PyArena *arena)
+{
+    location loc = match_assign_loc(lineno, col_offset, end_lineno, end_col_offset);
+    return pipeline_build(p, NULL, value, steps, loc, arena);
 }

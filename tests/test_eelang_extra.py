@@ -486,3 +486,98 @@ class MiscRuntimeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BarePipelineTests(unittest.TestCase):
+    """Голый многострочный пайплайн без присваивания (побочные эффекты)."""
+
+    def test_bare_pipeline_with_assert(self):
+        ns = {}
+        run("""
+class Response:
+    def __init__(self, status):
+        self.status = status
+def httpee():
+    return {"url": "http://x"}
+def GET(u, resp):
+    assert u == "http://target"
+    return Response(200)
+url = "http://target"
+httpee()
+..GET: url
+..assert:
+    Response(status=200)
+""", ns)
+        self.assertTrue(ns["Response"])
+
+    def test_bare_pipeline_assert_failure(self):
+        with self.assertRaises(MatchError):
+            run("""
+class Response:
+    def __init__(self, status):
+        self.status = status
+def f():
+    return Response(404)
+f()
+..assert:
+    Response(status=200)
+""")
+
+    def test_bare_call_chain_side_effects(self):
+        ns = {}
+        run("""
+log = []
+def a(x):
+    log.append('a')
+    return x + 1
+def b(x):
+    log.append('b')
+    return x * 2
+a(1)
+..b()
+..a()
+""", ns)
+        self.assertEqual(ns["log"], ["a", "b", "a"])
+
+    def test_bare_call_chain_no_temp_leak(self):
+        ns = {}
+        run("def f(x): return x + 1\nf(1)\n..f()\n", ns)
+        self.assertNotIn(".0", ns)
+
+    def test_bare_pipeline_inside_function(self):
+        ns = {}
+        run("""
+def f(x):
+    return x + 1
+def run(v):
+    v
+    ..f()
+    ..f()
+""", ns)
+        self.assertEqual(ns["f"](1), 2)  # смоук: функция определилась
+
+    def test_bare_pipeline_with_match_step(self):
+        ns = {}
+        run("""
+def f():
+    return [1, 2, 3]
+f()
+..match:
+    case [a, b, c]:
+        (a, b, c)
+    case _:
+        'no'
+""", ns)
+        self.assertEqual((ns["a"], ns["b"], ns["c"]), (1, 2, 3))
+
+    def test_bare_pipeline_dot0_leaks_with_block_steps(self):
+        # statement-шаги несут значение через `.0` — оно видно в locals()
+        ns = {}
+        run("def f(): return 5\nf()\n..assert:\n    n\n", ns)
+        self.assertEqual(ns[".0"], 5)
+        self.assertEqual(ns["n"], 5)
+
+    def test_plain_statements_still_work_after_bare_pipeline(self):
+        ns = {}
+        run("def f(x): return x + 1\nf(1)\n..f()\ny = 10\nz = y + 1\n", ns)
+        self.assertEqual(ns["z"], 11)

@@ -226,6 +226,8 @@ expr_ty _PyPegen_pipe_block(Parser *, expr_ty, expr_ty, expr_ty,
     Py_ssize_t, Py_ssize_t, Py_ssize_t, Py_ssize_t, PyArena *);
 asdl_stmt_seq *_PyPegen_pipeline_stmt(Parser *, expr_ty, expr_ty, asdl_seq *,
     Py_ssize_t, Py_ssize_t, Py_ssize_t, Py_ssize_t, PyArena *);
+asdl_stmt_seq *_PyPegen_bare_pipeline_stmt(Parser *, expr_ty, asdl_seq *,
+    Py_ssize_t, Py_ssize_t, Py_ssize_t, Py_ssize_t, PyArena *);
 expr_ty _PyPegen_number_token(Parser *p);
 void *_PyPegen_string_token(Parser *p);
 Py_ssize_t _PyPegen_byte_offset_to_character_offset_line(PyObject *line, Py_ssize_t col_offset, Py_ssize_t end_col_offset);
