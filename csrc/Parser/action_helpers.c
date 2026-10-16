@@ -2280,18 +2280,27 @@ static PyObject *eelang_temp_name(void);
 static stmt_ty
 match_assign_raise(Parser *p, expr_ty subject, location loc)
 {
+    /* Лениво создаются один раз на процесс и интернируются immortally:
+       не нужно ни арены, ни повторного выделения на каждый raise-сайт. */
+    static PyObject *mod_name = NULL;
+    static PyObject *err_name = NULL;
+    if (mod_name == NULL) {
+        mod_name = PyUnicode_FromString("eelang");
+        if (mod_name != NULL) {
+            _PyUnicode_InternImmortal(PyInterpreterState_Get(), &mod_name);
+        }
+        err_name = PyUnicode_FromString("MatchError");
+        if (err_name != NULL) {
+            _PyUnicode_InternImmortal(PyInterpreterState_Get(), &err_name);
+        }
+    }
+    if (mod_name == NULL || err_name == NULL) {
+        return NULL;
+    }
     expr_ty imp = _PyAST_Name(&_Py_ID(__import__), Load, loc.lineno, loc.col_offset,
                               loc.end_lineno, loc.end_col_offset, p->arena);
     asdl_expr_seq *imp_args = _Py_asdl_expr_seq_new(1, p->arena);
     if (imp == NULL || imp_args == NULL) {
-        return NULL;
-    }
-    PyObject *mod_name = PyUnicode_FromString("eelang");
-    if (mod_name == NULL) {
-        return NULL;
-    }
-    if (_PyArena_AddPyObject(p->arena, mod_name) < 0) {
-        Py_DECREF(mod_name);
         return NULL;
     }
     asdl_seq_SET(imp_args, 0, _PyAST_Constant(mod_name, NULL, loc.lineno,
@@ -2299,14 +2308,6 @@ match_assign_raise(Parser *p, expr_ty subject, location loc)
                                               loc.end_col_offset, p->arena));
     expr_ty imp_call = _PyAST_Call(imp, imp_args, NULL, loc.lineno, loc.col_offset,
                                    loc.end_lineno, loc.end_col_offset, p->arena);
-    PyObject *err_name = PyUnicode_FromString("MatchError");
-    if (err_name == NULL) {
-        return NULL;
-    }
-    if (_PyArena_AddPyObject(p->arena, err_name) < 0) {
-        Py_DECREF(err_name);
-        return NULL;
-    }
     expr_ty fn = _PyAST_Attribute(imp_call, err_name, Load, loc.lineno,
                                   loc.col_offset, loc.end_lineno, loc.end_col_offset,
                                   p->arena);
